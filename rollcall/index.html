@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>RollCall · Event & Attendance Manager</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -10,10 +11,12 @@
   <header class="app-header">
     <div class="container header-inner">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">RC</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </span>
         <div>
           <h1>RollCall</h1>
-          <p class="tagline">Event &amp; attendance manager for org officers</p>
+          <p class="tagline">Events &amp; attendance for org officers</p>
         </div>
       </div>
       <nav class="tabs" role="tablist" aria-label="Sections">
@@ -29,168 +32,215 @@
 
       <!-- Events list -->
       <div id="events-list-view">
-        <div class="toolbar">
+        <div class="page-head">
           <div>
             <h2>Events</h2>
             <p class="muted">Select an event to manage registrations and check-in.</p>
           </div>
-          <div class="toolbar-actions">
-            <label class="inline-field">
-              <span>Status</span>
-              <select id="status-filter">
-                <option value="All">All statuses</option>
-                <option value="Draft">Draft</option>
-                <option value="Open">Open for Registration</option>
-                <option value="Closed">Closed</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </label>
-            <button type="button" id="add-event-btn" class="btn btn-primary">+ New event</button>
-          </div>
+          <button type="button" id="add-event-btn" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            New event
+          </button>
         </div>
 
-        <div class="table-wrap">
-          <table class="data-table" id="events-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Date</th>
-                <th>Venue</th>
-                <th>Status</th>
-                <th class="num">Registered</th>
-                <th class="num">Slots left</th>
-                <th class="num">Present</th>
-                <th class="num">Attendance</th>
-              </tr>
-            </thead>
-            <tbody id="events-tbody"></tbody>
-          </table>
-          <p id="events-empty" class="empty" hidden>No events match this filter.</p>
+        <div class="overview" id="events-overview"></div>
+
+        <div class="panel">
+          <div class="panel-toolbar">
+            <div class="chips" id="status-chips" role="group" aria-label="Filter by status"></div>
+            <label class="search">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input type="search" id="event-search" placeholder="Search events or venues" aria-label="Search events">
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table events-table" id="events-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Registered</th>
+                  <th class="num">Slots left</th>
+                  <th class="num">Present</th>
+                  <th>Attendance rate</th>
+                  <th class="chevron-col" aria-hidden="true"></th>
+                </tr>
+              </thead>
+              <tbody id="events-tbody"></tbody>
+            </table>
+          </div>
+          <div id="events-empty" class="empty-state" hidden></div>
         </div>
       </div>
 
       <!-- Event details -->
       <div id="event-detail-view" hidden>
-        <button type="button" id="back-to-list" class="btn btn-link">&larr; All events</button>
+        <button type="button" id="back-to-list" class="back-link">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          All events
+        </button>
 
-        <div class="detail-header">
-          <div>
-            <div class="detail-title-row">
-              <h2 id="detail-name"></h2>
-              <span id="detail-status"></span>
+        <div class="panel detail-hero">
+          <div class="detail-header">
+            <div class="detail-heading">
+              <div class="detail-title-row">
+                <h2 id="detail-name"></h2>
+                <span id="detail-status"></span>
+              </div>
+              <p id="detail-meta" class="detail-meta"></p>
             </div>
-            <p id="detail-meta" class="muted"></p>
+            <div class="detail-actions">
+              <button type="button" id="advance-status-btn" class="btn btn-primary"></button>
+              <button type="button" id="edit-event-btn" class="btn">Edit</button>
+              <button type="button" id="delete-event-btn" class="btn btn-ghost-danger">Delete</button>
+            </div>
           </div>
-          <div class="detail-actions">
-            <button type="button" id="advance-status-btn" class="btn btn-primary"></button>
-            <button type="button" id="edit-event-btn" class="btn">Edit</button>
-            <button type="button" id="delete-event-btn" class="btn btn-danger">Delete</button>
-          </div>
+          <ol class="stepper" id="detail-stepper" aria-label="Event status progress"></ol>
         </div>
 
         <div class="stats" id="detail-stats"></div>
 
         <div class="detail-grid">
-          <section class="card" aria-labelledby="register-heading">
-            <h3 id="register-heading">Register a student</h3>
-            <p id="registration-hint" class="hint"></p>
+          <section class="panel form-panel" aria-labelledby="register-heading">
+            <div class="panel-title">
+              <span class="panel-icon panel-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+              </span>
+              <div>
+                <h3 id="register-heading">Register a student</h3>
+                <p id="registration-hint" class="hint"></p>
+              </div>
+            </div>
             <form id="registration-form" novalidate>
-              <div class="field">
-                <label for="reg-name">Student name</label>
-                <input id="reg-name" name="studentName" type="text" maxlength="80" autocomplete="off" required>
-              </div>
-              <div class="form-row">
+              <fieldset id="registration-fieldset">
                 <div class="field">
-                  <label for="reg-student-id">Student ID</label>
-                  <input id="reg-student-id" name="studentId" type="text" maxlength="20" placeholder="e.g. 2024-00123" autocomplete="off" required>
+                  <label for="reg-name">Student name</label>
+                  <input id="reg-name" name="studentName" type="text" maxlength="80" placeholder="e.g. Juan Dela Cruz" autocomplete="off" required>
                 </div>
-                <div class="field field-sm">
-                  <label for="reg-year">Year level</label>
-                  <select id="reg-year" name="yearLevel" required>
-                    <option value="">Select</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                  </select>
+                <div class="form-row">
+                  <div class="field">
+                    <label for="reg-student-id">Student ID</label>
+                    <input id="reg-student-id" name="studentId" type="text" maxlength="20" placeholder="e.g. 2024-00123" autocomplete="off" required>
+                  </div>
+                  <div class="field field-sm">
+                    <label for="reg-year">Year level</label>
+                    <select id="reg-year" name="yearLevel" required>
+                      <option value="">Select</option>
+                      <option value="1">1st year</option>
+                      <option value="2">2nd year</option>
+                      <option value="3">3rd year</option>
+                      <option value="4">4th year</option>
+                      <option value="5">5th year</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div class="form-errors" id="registration-errors" role="alert" hidden></div>
-              <button type="submit" class="btn btn-primary">Register</button>
+                <div class="form-errors" id="registration-errors" role="alert" hidden></div>
+                <button type="submit" class="btn btn-primary btn-block">Register student</button>
+              </fieldset>
             </form>
           </section>
 
-          <section class="card" aria-labelledby="checkin-heading">
-            <h3 id="checkin-heading">Check-in</h3>
-            <p id="checkin-hint" class="hint"></p>
-            <form id="checkin-form" novalidate>
-              <div class="field">
-                <label for="checkin-student-id">Student ID</label>
-                <input id="checkin-student-id" name="studentId" type="text" maxlength="20" placeholder="Scan or type student ID" autocomplete="off" required>
+          <section class="panel form-panel" aria-labelledby="checkin-heading">
+            <div class="panel-title">
+              <span class="panel-icon panel-icon-green" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              </span>
+              <div>
+                <h3 id="checkin-heading">Check-in</h3>
+                <p id="checkin-hint" class="hint"></p>
               </div>
-              <button type="submit" class="btn btn-primary">Check in</button>
+            </div>
+            <form id="checkin-form" novalidate>
+              <fieldset id="checkin-fieldset">
+                <div class="field">
+                  <label for="checkin-student-id">Student ID</label>
+                  <input id="checkin-student-id" class="input-lg" name="studentId" type="text" maxlength="20" placeholder="Scan or type student ID" autocomplete="off" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-block">Mark as present</button>
+              </fieldset>
             </form>
           </section>
         </div>
 
-        <section class="card" aria-labelledby="registrations-heading">
-          <div class="card-head">
-            <h3 id="registrations-heading">Registrations</h3>
-            <div class="filters">
-              <input type="search" id="reg-search" placeholder="Search name or student ID" aria-label="Search registrations">
+        <section class="panel" aria-labelledby="registrations-heading">
+          <div class="panel-toolbar">
+            <h3 id="registrations-heading">Registrations <span id="registrations-count" class="count-pill"></span></h3>
+            <div class="toolbar-group">
+              <label class="search">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                <input type="search" id="reg-search" placeholder="Search name or student ID" aria-label="Search registrations">
+              </label>
               <select id="attendance-filter" aria-label="Filter by attendance">
-                <option value="All">All</option>
+                <option value="All">All students</option>
                 <option value="Present">Present</option>
                 <option value="Absent">Absent</option>
               </select>
-              <button type="button" id="export-csv-btn" class="btn">Export CSV</button>
+              <button type="button" id="export-csv-btn" class="btn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                Export CSV
+              </button>
             </div>
           </div>
           <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table reg-table">
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Student ID</th>
-                  <th class="num">Year</th>
+                  <th>Year</th>
                   <th>Registered on</th>
                   <th>Attendance</th>
-                  <th class="actions-col">Actions</th>
+                  <th class="actions-col"><span class="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody id="registrations-tbody"></tbody>
             </table>
-            <p id="registrations-empty" class="empty" hidden></p>
           </div>
+          <div id="registrations-empty" class="empty-state empty-state-sm" hidden></div>
         </section>
       </div>
     </section>
 
     <!-- ===== Report tab ===== -->
     <section id="panel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
-      <div class="toolbar">
+      <div class="page-head">
         <div>
           <h2>Report</h2>
           <p class="muted">Computed live from current events and registrations.</p>
         </div>
-        <button type="button" id="reset-data-btn" class="btn btn-danger">Clear all data</button>
+        <button type="button" id="reset-data-btn" class="btn btn-ghost-danger">Clear all data</button>
       </div>
-      <h3 class="section-label">Events per status</h3>
-      <div class="stats" id="status-counts"></div>
 
-      <h3 class="section-label">Highest attendance (Completed events)</h3>
-      <div id="top-attendance"></div>
+      <div class="report-grid">
+        <section class="panel">
+          <h3 class="panel-heading">Events per status</h3>
+          <div id="status-counts"></div>
+        </section>
+        <section class="panel">
+          <h3 class="panel-heading">Highest attendance <span class="muted">· Completed events</span></h3>
+          <div id="top-attendance"></div>
+        </section>
+      </div>
     </section>
   </main>
 
   <!-- Add / edit event dialog -->
   <dialog id="event-dialog" aria-labelledby="event-form-title">
     <form id="event-form" novalidate>
-      <h3 id="event-form-title">New event</h3>
+      <div class="dialog-head">
+        <h3 id="event-form-title">New event</h3>
+        <button type="button" class="icon-btn" id="event-close-btn" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
       <div class="field">
         <label for="event-name">Event name</label>
-        <input id="event-name" name="name" type="text" maxlength="100" required>
+        <input id="event-name" name="name" type="text" maxlength="100" placeholder="e.g. General Assembly" required>
+      </div>
+      <div class="field">
+        <label for="event-venue">Venue</label>
+        <input id="event-venue" name="venue" type="text" maxlength="100" placeholder="e.g. Main Auditorium" required>
       </div>
       <div class="form-row">
         <div class="field">
@@ -199,14 +249,10 @@
         </div>
         <div class="field field-sm">
           <label for="event-capacity">Capacity</label>
-          <input id="event-capacity" name="capacity" type="number" min="1" step="1" required>
+          <input id="event-capacity" name="capacity" type="number" min="1" step="1" placeholder="50" required>
         </div>
       </div>
-      <div class="field">
-        <label for="event-venue">Venue</label>
-        <input id="event-venue" name="venue" type="text" maxlength="100" required>
-      </div>
-      <p id="event-status-note" class="hint"></p>
+      <p id="event-status-note" class="note"></p>
       <div class="form-errors" id="event-errors" role="alert" hidden></div>
       <div class="dialog-actions">
         <button type="button" id="event-cancel-btn" class="btn">Cancel</button>

@@ -38,6 +38,7 @@ const TOAST_DURATION_MS = 4000;
 const state = {
   events: [],
   registrations: [],
+  statusFilter: 'All',   // status chip selected on the events list
   selectedEventId: null, // event shown in the details view
   editingEventId: null,  // event being edited in the dialog (null = new event)
 };
@@ -516,23 +517,45 @@ function exportAttendanceCsv(eventId) {
 }
 
 /* ==========================================================
-   UI: messages
+   UI: icons & shared bits
    ========================================================== */
 
 const dom = {};
 
+// Small inline SVG icons (stroke style, inherit currentColor).
+const ICONS = {
+  calendar: '<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  x: '<path d="M18 6L6 18M6 6l12 12"/>',
+  alert: '<path d="M12 8v5M12 16.5v.5"/>',
+  chevron: '<path d="M9 18l6-6-6-6"/>',
+  open: '<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  layers: '<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+};
+
+function icon(name, size = 16, strokeWidth = 2) {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+}
+
 function cacheDom() {
   const ids = [
-    'status-filter', 'add-event-btn', 'events-tbody', 'events-empty',
+    'add-event-btn', 'events-tbody', 'events-empty', 'events-overview', 'status-chips', 'event-search',
     'events-list-view', 'event-detail-view', 'back-to-list',
-    'detail-name', 'detail-status', 'detail-meta', 'detail-stats',
+    'detail-name', 'detail-status', 'detail-meta', 'detail-stats', 'detail-stepper',
     'advance-status-btn', 'edit-event-btn', 'delete-event-btn',
-    'registration-form', 'registration-hint', 'registration-errors',
-    'checkin-form', 'checkin-hint', 'checkin-student-id',
-    'reg-search', 'attendance-filter', 'registrations-tbody', 'registrations-empty',
+    'registration-form', 'registration-fieldset', 'registration-hint', 'registration-errors',
+    'checkin-form', 'checkin-fieldset', 'checkin-hint', 'checkin-student-id',
+    'reg-search', 'attendance-filter', 'registrations-tbody', 'registrations-empty', 'registrations-count',
     'panel-events', 'panel-report', 'status-counts', 'top-attendance',
     'event-dialog', 'event-form', 'event-form-title', 'event-status-note',
-    'event-errors', 'event-cancel-btn', 'toast-region', 'reset-data-btn', 'export-csv-btn',
+    'event-errors', 'event-cancel-btn', 'event-close-btn', 'toast-region', 'reset-data-btn', 'export-csv-btn',
   ];
   ids.forEach((id) => {
     const key = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -540,17 +563,31 @@ function cacheDom() {
   });
 }
 
+/* ==========================================================
+   UI: messages
+   ========================================================== */
+
+function dismissToast(toast) {
+  if (!toast.isConnected || toast.classList.contains('is-leaving')) return;
+  toast.classList.add('is-leaving');
+  setTimeout(() => toast.remove(), 250);
+}
+
 function showMessage(message, type = 'success') {
+  const isError = type === 'error';
   const toast = document.createElement('div');
-  toast.className = `toast${type === 'error' ? ' toast-error' : ''}`;
-  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-  toast.textContent = message;
+  toast.className = `toast${isError ? ' toast-error' : ''}`;
+  toast.setAttribute('role', isError ? 'alert' : 'status');
+  toast.innerHTML = `
+    <span class="toast-icon">${icon(isError ? 'alert' : 'check', 14, 3)}</span>
+    <span class="toast-text"></span>
+    <button type="button" class="icon-btn" aria-label="Dismiss">${icon('x', 14, 2.4)}</button>`;
+  toast.querySelector('.toast-text').textContent = message;
+  toast.querySelector('button').addEventListener('click', () => dismissToast(toast));
   dom.toastRegion.appendChild(toast);
 
-  setTimeout(() => {
-    toast.classList.add('is-leaving');
-    setTimeout(() => toast.remove(), 300);
-  }, TOAST_DURATION_MS);
+  // Errors stay a little longer so they can be read.
+  setTimeout(() => dismissToast(toast), isError ? TOAST_DURATION_MS + 2000 : TOAST_DURATION_MS);
 }
 
 // Shows the result of an action as a toast. Returns true when it succeeded.
@@ -573,50 +610,146 @@ function renderStatusBadge(status) {
   return `<span class="badge badge-${status.toLowerCase()}">${escapeHtml(STATUS_LABELS[status] || status)}</span>`;
 }
 
-function renderStat(label, value, sub) {
+function renderMeter(percent, extraClass = '') {
+  const width = Math.max(0, Math.min(100, percent));
+  return `<div class="meter ${extraClass}"><span style="width:${width}%"></span></div>`;
+}
+
+function renderStat(label, value, sub, meterHtml) {
   return `
     <div class="stat">
       <div class="stat-label">${escapeHtml(label)}</div>
       <div class="stat-value">${escapeHtml(value)}</div>
       ${sub ? `<div class="stat-sub">${escapeHtml(sub)}</div>` : ''}
+      ${meterHtml || ''}
     </div>`;
+}
+
+function renderEmptyState(iconName, title, text, buttonHtml = '') {
+  return `
+    <span class="empty-icon">${icon(iconName, 26, 1.8)}</span>
+    <h4>${escapeHtml(title)}</h4>
+    <p>${escapeHtml(text)}</p>
+    ${buttonHtml}`;
+}
+
+function getInitials(name) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0] || '')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+// Same student ID always gets the same avatar colour.
+function getAvatarTone(studentId) {
+  const tones = ['tone-indigo', 'tone-green', 'tone-amber', 'tone-blue', 'tone-gray'];
+  let hash = 0;
+  for (const ch of studentId) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return tones[hash % tones.length];
 }
 
 /* ==========================================================
    UI: events list
    ========================================================== */
 
+function renderOverview() {
+  const counts = countEventsByStatus();
+  const today = todayISO();
+  const todayCount = state.events.filter((e) => e.date === today).length;
+  const upcoming = state.events.filter((e) => e.date > today && e.status !== 'Completed').length;
+
+  const cards = [
+    ['Total events', state.events.length, 'layers', 'tone-indigo'],
+    ['Open for registration', counts.Open, 'open', 'tone-green'],
+    ['Happening today', todayCount, 'sun', 'tone-amber'],
+    ['Upcoming', upcoming, 'clock', 'tone-blue'],
+  ];
+  dom.eventsOverview.innerHTML = cards.map(([label, value, iconName, tone]) => `
+    <div class="overview-card">
+      <span class="overview-icon ${tone}">${icon(iconName, 20)}</span>
+      <div>
+        <div class="overview-label">${escapeHtml(label)}</div>
+        <div class="overview-value">${value}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderStatusChips() {
+  const counts = countEventsByStatus();
+  const chips = [['All', 'All', state.events.length], ...STATUS_FLOW.map((s) => [s, STATUS_LABELS[s], counts[s]])];
+  dom.statusChips.innerHTML = chips.map(([value, label, count]) => `
+    <button type="button" class="chip${state.statusFilter === value ? ' is-active' : ''}" data-status="${value}" aria-pressed="${state.statusFilter === value}">
+      ${escapeHtml(label)} <span class="chip-count">${count}</span>
+    </button>`).join('');
+}
+
 function renderEventsTable() {
-  const filter = dom.statusFilter.value;
+  renderOverview();
+  renderStatusChips();
+
+  const query = dom.eventSearch.value.trim().toLowerCase();
+  const today = todayISO();
   const events = state.events
-    .filter((event) => filter === 'All' || event.status === filter)
+    .filter((event) => state.statusFilter === 'All' || event.status === state.statusFilter)
+    .filter((event) => !query ||
+      event.name.toLowerCase().includes(query) ||
+      event.venue.toLowerCase().includes(query))
     .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
 
   dom.eventsTbody.innerHTML = events.map((event) => {
     const stats = computeEventStats(event);
-    const fullBadge = stats.slotsLeft === 0 ? '<span class="badge badge-full">Full</span>' : '';
+    const isFull = stats.slotsLeft === 0;
+    const fillPct = (stats.registered / event.capacity) * 100;
+    const todayPill = event.date === today ? '<span class="badge today-pill">Today</span>' : '';
     return `
-      <tr class="clickable" data-event-id="${escapeHtml(event.id)}">
-        <td><button type="button" class="link-btn" data-open-event="${escapeHtml(event.id)}">${escapeHtml(event.name)}</button></td>
-        <td>${escapeHtml(formatDate(event.date))}</td>
-        <td>${escapeHtml(event.venue)}</td>
-        <td>${renderStatusBadge(event.status)}</td>
-        <td class="num">${stats.registered} / ${event.capacity}</td>
-        <td class="num">${stats.slotsLeft}${fullBadge}</td>
-        <td class="num">${stats.present}</td>
-        <td class="num">${formatRate(stats)}</td>
+      <tr data-event-id="${escapeHtml(event.id)}">
+        <td class="cell-main">
+          <button type="button" class="event-name">${escapeHtml(event.name)}</button>
+          <div class="event-venue">${icon('pin', 13)}${escapeHtml(event.venue)}</div>
+        </td>
+        <td class="date-cell" data-label="Date"><span>${escapeHtml(formatDate(event.date))}${todayPill}</span></td>
+        <td data-label="Status">${renderStatusBadge(event.status)}</td>
+        <td class="meter-cell" data-label="Registered">
+          <div>
+            <div class="meter-text"><span>${stats.registered} / ${event.capacity}</span></div>
+            ${renderMeter(fillPct, isFull ? 'meter-full' : '')}
+          </div>
+        </td>
+        <td class="num" data-label="Slots left">${isFull ? '<span class="badge badge-full badge-plain">Full</span>' : stats.slotsLeft}</td>
+        <td class="num" data-label="Present">${stats.present}</td>
+        <td class="meter-cell" data-label="Attendance rate">
+          <div>
+            <div class="meter-text"><span>${formatRate(stats)}</span></div>
+            ${renderMeter(stats.attendanceRate, 'meter-green')}
+          </div>
+        </td>
+        <td class="chevron-cell"><span class="chevron">${icon('chevron', 18)}</span></td>
       </tr>`;
   }).join('');
 
+  const hasEvents = state.events.length > 0;
   dom.eventsEmpty.hidden = events.length > 0;
-  dom.eventsEmpty.textContent = state.events.length === 0
-    ? 'No events yet. Create your first event.'
-    : 'No events match this filter.';
+  dom.eventsTbody.closest('.table-wrap').hidden = events.length === 0;
+  dom.eventsEmpty.innerHTML = hasEvents
+    ? renderEmptyState('search', 'No matching events', 'Try a different status or search term.')
+    : renderEmptyState('calendar', 'No events yet', 'Create your first event, then open it for registration so students can sign up.',
+      `<button type="button" class="btn btn-primary" data-action="new-event">${icon('plus', 16, 2.5)} Create event</button>`);
 }
 
 /* ==========================================================
    UI: event details
    ========================================================== */
+
+function renderStepper(status) {
+  const currentIndex = STATUS_FLOW.indexOf(status);
+  dom.detailStepper.innerHTML = STATUS_FLOW.map((step, i) => {
+    const cls = i < currentIndex ? 'is-done' : i === currentIndex ? 'is-current' : '';
+    const mark = i < currentIndex ? icon('check', 13, 3) : '';
+    return `
+      <li class="step ${cls}"${i === currentIndex ? ' aria-current="step"' : ''}>
+        <span class="step-bar"></span>
+        <span class="step-label">${mark}${escapeHtml(STATUS_LABELS[step])}</span>
+      </li>`;
+  }).join('');
+}
 
 function renderEventDetails() {
   const event = getEventById(state.selectedEventId);
@@ -625,31 +758,44 @@ function renderEventDetails() {
     return;
   }
   const stats = computeEventStats(event);
+  const isToday = isEventToday(event);
+  const isFull = stats.slotsLeft === 0;
 
   dom.detailName.textContent = event.name;
-  dom.detailStatus.innerHTML = renderStatusBadge(event.status);
-  dom.detailMeta.textContent = `${formatDate(event.date)} · ${event.venue}`;
+  dom.detailStatus.innerHTML = renderStatusBadge(event.status) +
+    (isToday ? ' <span class="badge today-pill">Today</span>' : '');
+  dom.detailMeta.innerHTML = `
+    <span>${icon('calendar', 15)}${escapeHtml(formatDate(event.date))}</span>
+    <span>${icon('pin', 15)}${escapeHtml(event.venue)}</span>
+    <span>${icon('users', 15)}${event.capacity} capacity</span>`;
+  renderStepper(event.status);
 
   dom.detailStats.innerHTML = [
-    renderStat('Capacity', String(event.capacity)),
-    renderStat('Registered', String(stats.registered)),
-    renderStat('Slots left', String(stats.slotsLeft), stats.slotsLeft === 0 ? 'Event is full' : ''),
-    renderStat('Present', String(stats.present)),
-    renderStat('Attendance rate', formatRate(stats), `${stats.present} of ${stats.registered}`),
+    renderStat('Registered', String(stats.registered), `of ${event.capacity} capacity`,
+      renderMeter((stats.registered / event.capacity) * 100, isFull ? 'meter-full' : '')),
+    renderStat('Slots left', String(stats.slotsLeft), isFull ? 'Event is full' : 'available'),
+    renderStat('Present', String(stats.present), `${stats.registered - stats.present} absent`),
+    renderStat('Attendance rate', formatRate(stats), `${stats.present} of ${stats.registered}`,
+      renderMeter(stats.attendanceRate, 'meter-green')),
+    renderStat('Capacity', String(event.capacity), 'max students'),
   ].join('');
 
   const next = getNextStatus(event.status);
   dom.advanceStatusBtn.hidden = !next;
   if (next) dom.advanceStatusBtn.textContent = `Move to ${STATUS_LABELS[next]}`;
 
-  dom.registrationHint.textContent = event.status !== 'Open'
-    ? `Registration is closed. Students can register only while the event is Open for Registration.`
-    : stats.slotsLeft === 0
+  // The forms are disabled when their rule can't pass; the data functions still enforce every rule.
+  const registrationOpen = event.status === 'Open';
+  dom.registrationFieldset.disabled = !registrationOpen;
+  dom.registrationHint.textContent = !registrationOpen
+    ? 'Registration is available only while the event is Open for Registration.'
+    : isFull
       ? 'This event is full.'
       : `${stats.slotsLeft} slot${stats.slotsLeft === 1 ? '' : 's'} left.`;
 
-  dom.checkinHint.textContent = isEventToday(event)
-    ? 'Event is today. Check in registered students by ID, or use the buttons in the table.'
+  dom.checkinFieldset.disabled = !isToday;
+  dom.checkinHint.textContent = isToday
+    ? 'Event is today. Enter or scan a registered student ID.'
     : `Check-in opens on the event date (${formatDate(event.date)}).`;
 
   renderRegistrationsTable(event);
@@ -671,28 +817,42 @@ function renderRegistrationsTable(event) {
       (attendance === 'Absent' && !reg.present))
     .sort((a, b) => a.studentName.localeCompare(b.studentName));
 
+  dom.registrationsCount.textContent = allRegs.length;
+
   dom.registrationsTbody.innerHTML = regs.map((reg) => {
     const attendanceBtn = canChangeAttendance
-      ? `<button type="button" class="btn btn-sm" data-action="toggle" data-reg-id="${escapeHtml(reg.id)}">${reg.present ? 'Undo Present' : 'Check in'}</button>`
+      ? (reg.present
+        ? `<button type="button" class="btn btn-sm" data-action="toggle" data-reg-id="${escapeHtml(reg.id)}">Undo Present</button>`
+        : `<button type="button" class="btn btn-sm btn-toggle-present" data-action="toggle" data-reg-id="${escapeHtml(reg.id)}">${icon('check', 14, 2.6)}Check in</button>`)
       : '';
     const cancelBtn = canCancel
-      ? `<button type="button" class="btn btn-sm btn-danger" data-action="cancel" data-reg-id="${escapeHtml(reg.id)}">Cancel</button>`
+      ? `<button type="button" class="btn btn-sm btn-ghost-danger" data-action="cancel" data-reg-id="${escapeHtml(reg.id)}">Cancel</button>`
       : '';
+    const actions = attendanceBtn || cancelBtn ? `<td class="actions">${attendanceBtn}${cancelBtn}</td>` : '<td></td>';
     return `
       <tr>
-        <td>${escapeHtml(reg.studentName)}</td>
-        <td>${escapeHtml(reg.studentId)}</td>
-        <td class="num">${reg.yearLevel}</td>
-        <td>${escapeHtml(formatDate(reg.dateRegistered))}</td>
-        <td><span class="badge ${reg.present ? 'badge-present' : 'badge-absent'}">${reg.present ? 'Present' : 'Absent'}</span></td>
-        <td class="actions">${attendanceBtn}${cancelBtn}</td>
+        <td class="cell-main">
+          <div class="student">
+            <span class="avatar ${getAvatarTone(reg.studentId)}" aria-hidden="true">${escapeHtml(getInitials(reg.studentName))}</span>
+            <div>
+              <div class="student-name">${escapeHtml(reg.studentName)}</div>
+              <div class="student-id">${escapeHtml(reg.studentId)}</div>
+            </div>
+          </div>
+        </td>
+        <td data-label="Year">Year ${reg.yearLevel}</td>
+        <td class="nowrap" data-label="Registered on">${escapeHtml(formatDate(reg.dateRegistered))}</td>
+        <td data-label="Attendance"><span class="badge ${reg.present ? 'badge-present' : 'badge-absent'}">${reg.present ? 'Present' : 'Absent'}</span></td>
+        ${actions}
       </tr>`;
   }).join('');
 
   dom.registrationsEmpty.hidden = regs.length > 0;
-  dom.registrationsEmpty.textContent = allRegs.length === 0
-    ? 'No students registered yet.'
-    : 'No registrations match your search or filter.';
+  dom.registrationsTbody.closest('.table-wrap').hidden = regs.length === 0;
+  dom.registrationsEmpty.innerHTML = allRegs.length === 0
+    ? renderEmptyState('users', 'No students registered yet',
+      event.status === 'Open' ? 'Use the form above to register the first student.' : 'Open the event for registration to start signing students up.')
+    : renderEmptyState('search', 'No matches', 'No registrations match your search or filter.');
 }
 
 function openEventDetails(eventId) {
@@ -706,6 +866,10 @@ function openEventDetails(eventId) {
   dom.eventDetailView.hidden = false;
   renderEventDetails();
   window.scrollTo(0, 0);
+
+  // On event day, put the cursor straight into the check-in box (works with ID scanners).
+  const event = getEventById(eventId);
+  if (event && isEventToday(event)) dom.checkinStudentId.focus({ preventScroll: true });
 }
 
 function closeEventDetails() {
@@ -721,24 +885,36 @@ function closeEventDetails() {
 
 function renderReport() {
   const counts = countEventsByStatus();
-  dom.statusCounts.innerHTML = [
-    renderStat('Total events', String(state.events.length)),
-    ...STATUS_FLOW.map((status) => renderStat(STATUS_LABELS[status], String(counts[status]))),
-  ].join('');
+  const total = state.events.length;
+
+  const segments = total === 0 ? '' : STATUS_FLOW
+    .filter((s) => counts[s] > 0)
+    .map((s) => `<span class="seg-${s.toLowerCase()}" style="width:${(counts[s] / total) * 100}%" title="${STATUS_LABELS[s]}: ${counts[s]}"></span>`)
+    .join('');
+
+  dom.statusCounts.innerHTML = `
+    <div class="status-bar" aria-hidden="true">${segments}</div>
+    <ul class="status-list">
+      ${STATUS_FLOW.map((s) => `
+        <li><span><span class="dot seg-${s.toLowerCase()}"></span>${escapeHtml(STATUS_LABELS[s])}</span><strong>${counts[s]}</strong></li>`).join('')}
+      <li class="total"><span>Total events</span><strong>${total}</strong></li>
+    </ul>`;
 
   const top = findTopCompletedEvent();
   if (!top) {
-    dom.topAttendance.innerHTML = '<div class="card empty">No completed events yet</div>';
+    dom.topAttendance.innerHTML = `<div class="empty-state empty-state-sm">${renderEmptyState('trophy', 'No completed events yet',
+      'Once an event is marked Completed, the one with the best attendance shows up here.')}</div>`;
     return;
   }
   dom.topAttendance.innerHTML = `
-    <div class="card highlight-card">
+    <div class="top-event">
+      <div class="ring" style="--pct:${top.stats.attendanceRate}"><span>${formatRate(top.stats)}</span></div>
       <div>
+        <span class="trophy">${icon('trophy', 13)}Top attendance</span>
         <h4>${escapeHtml(top.event.name)}</h4>
-        <p class="muted">${escapeHtml(formatDate(top.event.date))} · ${escapeHtml(top.event.venue)}</p>
-        <p class="muted">${top.stats.present} present of ${top.stats.registered} registered</p>
+        <p>${escapeHtml(formatDate(top.event.date))} · ${escapeHtml(top.event.venue)}</p>
+        <p>${top.stats.present} present of ${top.stats.registered} registered</p>
       </div>
-      <div class="highlight-rate">${formatRate(top.stats)}</div>
     </div>`;
 }
 
@@ -851,6 +1027,7 @@ function handleRegistrationSubmit(e) {
     dom.registrationForm.reset();
     clearInvalidMarks(dom.registrationForm);
     showFormErrors(dom.registrationErrors, []);
+    dom.registrationForm.elements.studentName.focus(); // ready for the next student
   } else {
     showFormErrors(dom.registrationErrors, result.errors);
     markInvalidFields(dom.registrationForm, result.errors, {
@@ -883,6 +1060,13 @@ function handleRegistrationTableClick(e) {
     showResult(toggleAttendance(regId));
   }
   renderAll();
+}
+
+function handleStatusChipClick(e) {
+  const chip = e.target.closest('[data-status]');
+  if (!chip) return;
+  state.statusFilter = chip.dataset.status;
+  renderEventsTable();
 }
 
 function handleEventsTableClick(e) {
@@ -927,9 +1111,13 @@ function bindEvents() {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
 
-  dom.statusFilter.addEventListener('change', renderEventsTable);
+  dom.statusChips.addEventListener('click', handleStatusChipClick);
+  dom.eventSearch.addEventListener('input', renderEventsTable);
   dom.addEventBtn.addEventListener('click', () => openEventDialog(null));
   dom.eventsTbody.addEventListener('click', handleEventsTableClick);
+  dom.eventsEmpty.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action="new-event"]')) openEventDialog(null);
+  });
 
   dom.backToList.addEventListener('click', closeEventDetails);
   dom.advanceStatusBtn.addEventListener('click', handleAdvanceStatus);
@@ -944,6 +1132,7 @@ function bindEvents() {
 
   dom.eventForm.addEventListener('submit', handleEventFormSubmit);
   dom.eventCancelBtn.addEventListener('click', closeEventDialog);
+  dom.eventCloseBtn.addEventListener('click', closeEventDialog);
 }
 
 /* ==========================================================
