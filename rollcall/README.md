@@ -8,7 +8,7 @@ RollCall helps student organization officers run events from start to finish. Of
 
 ## Features
 
-- **Events:** create, edit and delete events. Each event moves through Draft → Open for Registration → Closed → Completed.
+- **Events:** create, edit and delete events with a date and start time. The list is sorted by date, then time. Each event moves through Draft → Open for Registration → Closed → Completed.
 - **Registration:** register students with their name, student ID and year level. The app blocks duplicate IDs and stops registration when the event is full.
 - **Check-in:** on the event day, mark students present by typing or scanning their ID, or from the registrations table. Officers can undo Present.
 - **Live counts:** registered, slots left, present and attendance rate are recalculated from the data after every action.
@@ -46,7 +46,7 @@ The app starts empty. Click **New event** to begin.
 
 ## How to use
 
-1. **Create an event.** Click **New event** and enter a name, venue, date and capacity. New events start as **Draft**.
+1. **Create an event.** Click **New event** and enter a name, venue, date, start time and capacity. New events start as **Draft**.
 2. **Open registration.** Open the event and click **Move to Open for Registration**.
 3. **Register students.** Fill in the student's name, student ID and year level, then click **Register student**.
 4. **Close registration.** Click **Move to Closed** when sign-ups end. You can skip this step if you want registration to stay open.
@@ -80,7 +80,7 @@ Every rule is checked inside the JavaScript data functions, not only by hiding o
 - Capacity cannot be edited below the number of students already registered.
 
 **Input validation:**
-- Event name, venue and date are required.
+- Event name, venue, date and start time are required.
 - Capacity must be a whole number of at least 1.
 - Student ID must be 3–20 letters, numbers or dashes.
 - Year level must be 1–5.
@@ -94,6 +94,7 @@ Event
   id          string
   name        string
   date        "YYYY-MM-DD"
+  time        "HH:MM" (24-hour start time, shown as e.g. 2:00 PM)
   venue       string
   capacity    number (≥ 1)
   status      "Draft" | "Open" | "Closed" | "Completed"   (default "Draft")

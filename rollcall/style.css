@@ -427,7 +427,7 @@ fieldset:disabled * { cursor: not-allowed; }
 .event-venue { display: flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--text-3); margin-top: 2px; }
 .date-cell { white-space: nowrap; }
 .date-cell .today-pill { margin-left: 6px; }
-.nowrap { white-space: nowrap; }
+.event-time { display: flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--text-3); margin-top: 2px; }.nowrap { white-space: nowrap; }
 
 /* Progress meters */
 .meter-cell { min-width: 140px; }
@@ -679,7 +679,8 @@ dialog form { padding: 22px 24px 24px; }
     color: var(--text-3);
     flex-shrink: 0;
   }
-  .data-table td.num { text-align: right; }
+  .data-table td.num, .data-table td.date-cell > div { text-align: right; }
+  .data-table td.date-cell .event-time { justify-content: flex-end; }
   .data-table td.cell-main { padding-bottom: 8px; padding-right: 28px; }
   .data-table td.chevron-cell { position: absolute; top: 14px; right: 12px; width: auto; padding: 0; }
   .meter-cell { min-width: 0; }

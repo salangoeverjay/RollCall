@@ -150,3 +150,38 @@ This file records each prompt given while building RollCall and what came of it.
 > add my prompt in this conversation and the result to prompt.md
 
 **Result:** Created this file.
+
+---
+
+## Prompt 10: Finding the export
+
+> where I can see the export csv?
+
+**Result:** Explained where it is. Open an event from the Events tab, scroll to the **Registrations** section, and the **Export CSV** button is at the top right. The event needs at least one registration before there's anything to export.
+
+---
+
+## Prompt 11: README
+
+> add readme
+
+**Result:** Added `README.md`, covering:
+- features and how to run the app
+- a step-by-step guide to using it
+- a table of the business rules, with the function that enforces each one
+- the data model and the CSV format
+- the project structure and known limitations
+
+---
+
+## Prompt 12: Event time
+
+> add a time for the event
+
+**Result:** Events now have a required **start time**.
+- The event form has a "Start time" field. Missing or invalid times are rejected and the field is highlighted.
+- Times are stored as 24-hour `HH:MM` and shown in the local format, such as "2:00 PM".
+- The time appears in the events list under the date, in the event page header, and in the Report's top event.
+- Events are sorted by date, then start time.
+- Check-in is still allowed on the event's date, as rule 6 specifies.
+- Events saved before this change still display without a time. Editing one asks for a time before it can be saved.

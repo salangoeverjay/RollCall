@@ -77,6 +77,28 @@ function formatDate(iso) {
   });
 }
 
+// Times are stored as 24-hour "HH:MM" strings.
+function isValidTime(value) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function formatTime(time) {
+  if (!time || !isValidTime(time)) return '';
+  const [h, m] = time.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// "Oct 7, 2026 · 2:00 PM" (time left out for older events saved without one).
+function formatEventWhen(event) {
+  const time = formatTime(event.time);
+  return time ? `${formatDate(event.date)} · ${time}` : formatDate(event.date);
+}
+
+// Events sort by date, then start time, then name.
+function compareEventsBySchedule(a, b) {
+  return a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '') || a.name.localeCompare(b.name);
+}
+
 function normalizeStudentId(value) {
   return String(value || '').trim().toUpperCase();
 }
@@ -197,6 +219,7 @@ function validateEventInput(input, existingEvent) {
   const name = String(input.name || '').trim();
   const venue = String(input.venue || '').trim();
   const date = String(input.date || '').trim();
+  const time = String(input.time || '').trim();
   const capacityText = String(input.capacity ?? '').trim();
 
   if (!name) errors.push('Event name is required.');
@@ -204,6 +227,9 @@ function validateEventInput(input, existingEvent) {
 
   if (!date) errors.push('Date is required.');
   else if (!isValidISODate(date)) errors.push('Date is not a valid date.');
+
+  if (!time) errors.push('Time is required.');
+  else if (!isValidTime(time)) errors.push('Time is not a valid time.');
 
   if (!venue) errors.push('Venue is required.');
   else if (venue.length > 100) errors.push('Venue must be 100 characters or fewer.');
@@ -233,6 +259,7 @@ function createEvent(input) {
     id: generateId('evt'),
     name: input.name.trim(),
     date: input.date.trim(),
+    time: input.time.trim(),
     venue: input.venue.trim(),
     capacity: Number(input.capacity),
     status: 'Draft', // Rule 1: every new event starts as Draft
@@ -242,7 +269,7 @@ function createEvent(input) {
   return success(`Event "${event.name}" created as Draft.`);
 }
 
-// Edits name, date, venue and capacity only. Status changes go through changeEventStatus (Rule 1).
+// Edits name, date, time, venue and capacity only. Status changes go through changeEventStatus (Rule 1).
 function updateEvent(eventId, input) {
   const event = getEventById(eventId);
   if (!event) return failure('Event not found.');
@@ -252,6 +279,7 @@ function updateEvent(eventId, input) {
 
   event.name = input.name.trim();
   event.date = input.date.trim();
+  event.time = input.time.trim();
   event.venue = input.venue.trim();
   event.capacity = Number(input.capacity);
   saveData();
@@ -692,7 +720,7 @@ function renderEventsTable() {
     .filter((event) => !query ||
       event.name.toLowerCase().includes(query) ||
       event.venue.toLowerCase().includes(query))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    .sort(compareEventsBySchedule);
 
   dom.eventsTbody.innerHTML = events.map((event) => {
     const stats = computeEventStats(event);
@@ -705,7 +733,12 @@ function renderEventsTable() {
           <button type="button" class="event-name">${escapeHtml(event.name)}</button>
           <div class="event-venue">${icon('pin', 13)}${escapeHtml(event.venue)}</div>
         </td>
-        <td class="date-cell" data-label="Date"><span>${escapeHtml(formatDate(event.date))}${todayPill}</span></td>
+        <td class="date-cell" data-label="Date &amp; time">
+          <div>
+            <div>${escapeHtml(formatDate(event.date))}${todayPill}</div>
+            ${event.time ? `<div class="event-time">${icon('clock', 13)}${escapeHtml(formatTime(event.time))}</div>` : ''}
+          </div>
+        </td>
         <td data-label="Status">${renderStatusBadge(event.status)}</td>
         <td class="meter-cell" data-label="Registered">
           <div>
@@ -766,6 +799,7 @@ function renderEventDetails() {
     (isToday ? ' <span class="badge today-pill">Today</span>' : '');
   dom.detailMeta.innerHTML = `
     <span>${icon('calendar', 15)}${escapeHtml(formatDate(event.date))}</span>
+    ${event.time ? `<span>${icon('clock', 15)}${escapeHtml(formatTime(event.time))}</span>` : ''}
     <span>${icon('pin', 15)}${escapeHtml(event.venue)}</span>
     <span>${icon('users', 15)}${event.capacity} capacity</span>`;
   renderStepper(event.status);
@@ -912,7 +946,7 @@ function renderReport() {
       <div>
         <span class="trophy">${icon('trophy', 13)}Top attendance</span>
         <h4>${escapeHtml(top.event.name)}</h4>
-        <p>${escapeHtml(formatDate(top.event.date))} · ${escapeHtml(top.event.venue)}</p>
+        <p>${escapeHtml(formatEventWhen(top.event))} · ${escapeHtml(top.event.venue)}</p>
         <p>${top.stats.present} present of ${top.stats.registered} registered</p>
       </div>
     </div>`;
@@ -956,6 +990,7 @@ function openEventDialog(event) {
   dom.eventFormTitle.textContent = event ? 'Edit event' : 'New event';
   dom.eventForm.elements.name.value = event ? event.name : '';
   dom.eventForm.elements.date.value = event ? event.date : '';
+  dom.eventForm.elements.time.value = event ? (event.time || '') : '';
   dom.eventForm.elements.venue.value = event ? event.venue : '';
   dom.eventForm.elements.capacity.value = event ? event.capacity : '';
   dom.eventStatusNote.textContent = event
@@ -973,7 +1008,7 @@ function closeEventDialog() {
 
 function readEventForm() {
   const f = dom.eventForm.elements;
-  return { name: f.name.value, date: f.date.value, venue: f.venue.value, capacity: f.capacity.value };
+  return { name: f.name.value, date: f.date.value, time: f.time.value, venue: f.venue.value, capacity: f.capacity.value };
 }
 
 // Marks fields whose name appears in an error message, so officers can spot them quickly.
@@ -1000,7 +1035,7 @@ function handleEventFormSubmit(e) {
   if (!result.ok) {
     showFormErrors(dom.eventErrors, result.errors);
     markInvalidFields(dom.eventForm, result.errors, {
-      name: 'event name', date: 'date', venue: 'venue', capacity: 'capacity',
+      name: 'event name', date: 'date', time: 'time', venue: 'venue', capacity: 'capacity',
     });
     showResult(result);
     return;
