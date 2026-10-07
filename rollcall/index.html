@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RollCall · Event & Attendance Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">RC</span>
+        <div>
+          <h1>RollCall</h1>
+          <p class="tagline">Event &amp; attendance manager for org officers</p>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab is-active" id="tab-events" role="tab" data-tab="events" aria-selected="true" aria-controls="panel-events">Events</button>
+        <button class="tab" id="tab-report" role="tab" data-tab="report" aria-selected="false" aria-controls="panel-report">Report</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ===== Events tab ===== -->
+    <section id="panel-events" role="tabpanel" aria-labelledby="tab-events">
+
+      <!-- Events list -->
+      <div id="events-list-view">
+        <div class="toolbar">
+          <div>
+            <h2>Events</h2>
+            <p class="muted">Select an event to manage registrations and check-in.</p>
+          </div>
+          <div class="toolbar-actions">
+            <label class="inline-field">
+              <span>Status</span>
+              <select id="status-filter">
+                <option value="All">All statuses</option>
+                <option value="Draft">Draft</option>
+                <option value="Open">Open for Registration</option>
+                <option value="Closed">Closed</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </label>
+            <button type="button" id="add-event-btn" class="btn btn-primary">+ New event</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="events-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Date</th>
+                <th>Venue</th>
+                <th>Status</th>
+                <th class="num">Registered</th>
+                <th class="num">Slots left</th>
+                <th class="num">Present</th>
+                <th class="num">Attendance</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody"></tbody>
+          </table>
+          <p id="events-empty" class="empty" hidden>No events match this filter.</p>
+        </div>
+      </div>
+
+      <!-- Event details -->
+      <div id="event-detail-view" hidden>
+        <button type="button" id="back-to-list" class="btn btn-link">&larr; All events</button>
+
+        <div class="detail-header">
+          <div>
+            <div class="detail-title-row">
+              <h2 id="detail-name"></h2>
+              <span id="detail-status"></span>
+            </div>
+            <p id="detail-meta" class="muted"></p>
+          </div>
+          <div class="detail-actions">
+            <button type="button" id="advance-status-btn" class="btn btn-primary"></button>
+            <button type="button" id="edit-event-btn" class="btn">Edit</button>
+            <button type="button" id="delete-event-btn" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+
+        <div class="stats" id="detail-stats"></div>
+
+        <div class="detail-grid">
+          <section class="card" aria-labelledby="register-heading">
+            <h3 id="register-heading">Register a student</h3>
+            <p id="registration-hint" class="hint"></p>
+            <form id="registration-form" novalidate>
+              <div class="field">
+                <label for="reg-name">Student name</label>
+                <input id="reg-name" name="studentName" type="text" maxlength="80" autocomplete="off" required>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="reg-student-id">Student ID</label>
+                  <input id="reg-student-id" name="studentId" type="text" maxlength="20" placeholder="e.g. 2024-00123" autocomplete="off" required>
+                </div>
+                <div class="field field-sm">
+                  <label for="reg-year">Year level</label>
+                  <select id="reg-year" name="yearLevel" required>
+                    <option value="">Select</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-errors" id="registration-errors" role="alert" hidden></div>
+              <button type="submit" class="btn btn-primary">Register</button>
+            </form>
+          </section>
+
+          <section class="card" aria-labelledby="checkin-heading">
+            <h3 id="checkin-heading">Check-in</h3>
+            <p id="checkin-hint" class="hint"></p>
+            <form id="checkin-form" novalidate>
+              <div class="field">
+                <label for="checkin-student-id">Student ID</label>
+                <input id="checkin-student-id" name="studentId" type="text" maxlength="20" placeholder="Scan or type student ID" autocomplete="off" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Check in</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="card" aria-labelledby="registrations-heading">
+          <div class="card-head">
+            <h3 id="registrations-heading">Registrations</h3>
+            <div class="filters">
+              <input type="search" id="reg-search" placeholder="Search name or student ID" aria-label="Search registrations">
+              <select id="attendance-filter" aria-label="Filter by attendance">
+                <option value="All">All</option>
+                <option value="Present">Present</option>
+                <option value="Absent">Absent</option>
+              </select>
+              <button type="button" id="export-csv-btn" class="btn">Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Student ID</th>
+                  <th class="num">Year</th>
+                  <th>Registered on</th>
+                  <th>Attendance</th>
+                  <th class="actions-col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="registrations-tbody"></tbody>
+            </table>
+            <p id="registrations-empty" class="empty" hidden></p>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ===== Report tab ===== -->
+    <section id="panel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+      <div class="toolbar">
+        <div>
+          <h2>Report</h2>
+          <p class="muted">Computed live from current events and registrations.</p>
+        </div>
+        <button type="button" id="reset-data-btn" class="btn btn-danger">Clear all data</button>
+      </div>
+      <h3 class="section-label">Events per status</h3>
+      <div class="stats" id="status-counts"></div>
+
+      <h3 class="section-label">Highest attendance (Completed events)</h3>
+      <div id="top-attendance"></div>
+    </section>
+  </main>
+
+  <!-- Add / edit event dialog -->
+  <dialog id="event-dialog" aria-labelledby="event-form-title">
+    <form id="event-form" novalidate>
+      <h3 id="event-form-title">New event</h3>
+      <div class="field">
+        <label for="event-name">Event name</label>
+        <input id="event-name" name="name" type="text" maxlength="100" required>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="event-date">Date</label>
+          <input id="event-date" name="date" type="date" required>
+        </div>
+        <div class="field field-sm">
+          <label for="event-capacity">Capacity</label>
+          <input id="event-capacity" name="capacity" type="number" min="1" step="1" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="event-venue">Venue</label>
+        <input id="event-venue" name="venue" type="text" maxlength="100" required>
+      </div>
+      <p id="event-status-note" class="hint"></p>
+      <div class="form-errors" id="event-errors" role="alert" hidden></div>
+      <div class="dialog-actions">
+        <button type="button" id="event-cancel-btn" class="btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save event</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
